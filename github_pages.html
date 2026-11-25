@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>115年勞健保及勞退保費查詢計算器</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Font Awesome 圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- 載入 Google Fonts (Inter 與 思源黑體) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* 自訂捲軸樣式 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-800">
+
+    <!-- 頂部導覽列與分頁切換 -->
+    <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-lg sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-3">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 text-xl shrink-0">
+                        <i class="fa-solid fa-calculator"></i>
+                    </div>
+                    <div>
+                        <h1 id="header-main-title" class="text-lg sm:text-xl font-bold tracking-tight">115年勞健保及勞退保費查詢系統</h1>
+                        <p id="header-sub-title" class="text-xs text-slate-300 mt-0.5">依據115年1月1日實施最新投保級距表與費率（基本工資 29,500 元）</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 text-xs bg-white/10 px-3 py-1.5 rounded-lg border border-white/10 self-start sm:self-auto">
+                    <span id="data-source-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="header-rate-badge">健保費率 5.17% ｜ 勞保普通 11.5% + 就保 1%</span>
+                </div>
+            </div>
+
+            <!-- 主分頁切換導覽 -->
+            <div class="flex gap-2 border-t border-white/10 pt-3">
+                <button id="main-tab-calc" onclick="switchMainTab('calc')" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-600 text-white shadow-sm transition-all">
+                    <i class="fa-solid fa-users"></i> 保費試算查詢 (多人列表)
+                </button>
+                <button id="main-tab-table" onclick="switchMainTab('table')" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-all">
+                    <i class="fa-solid fa-table-list"></i> <span id="tab-table-title">115年勞健保及勞退負擔金額完整對照表</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主內容區 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        <!-- 提示訊息框 (取代 alert) -->
+        <div id="toast-box" class="hidden fixed bottom-5 right-5 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 transition-all duration-300 transform translate-y-2 opacity-0">
+            <i class="fa-solid fa-circle-info text-indigo-400"></i>
+            <span id="toast-message" class="text-sm font-medium"></span>
+        </div>
+
+        <!-- 第一個分頁：多人列表保費試算查詢 -->
+        <div id="view-calculator" class="space-y-5">
+            
+            <!-- 頂部操作工具列與全體總計摘要 -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button id="btn-add-person" onclick="addPerson()" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-sm transition-all active:scale-95">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>新增人員 (<span id="person-count-text">5</span>/10)</span>
+                    </button>
+                    <button onclick="resetAllPersons()" class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/80 text-slate-700 font-medium text-xs sm:text-sm px-3.5 py-2.5 rounded-xl transition-colors">
+                        <i class="fa-solid fa-rotate-right"></i> 重設為預設 5 人
+                    </button>
+                    <button onclick="copyResultSummary()" class="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium text-xs sm:text-sm px-3.5 py-2.5 rounded-xl shadow-sm transition-all active:scale-95">
+                        <i class="fa-regular fa-copy text-indigo-600"></i> 複製全體試算明細
+                    </button>
+                </div>
+
+                <!-- 全體人員保費總計看板 -->
+                <div class="flex flex-wrap items-center gap-3 sm:gap-5 bg-slate-50 border border-slate-200/80 px-4 py-2.5 rounded-xl">
+                    <div>
+                        <div class="text-[11px] font-medium text-slate-500">全體個人自負額總計</div>
+                        <div class="text-base sm:text-lg font-extrabold text-indigo-700"><span id="summary-emp-total">0</span> <span class="text-xs font-normal">元</span></div>
+                    </div>
+                    <div class="h-7 w-px bg-slate-200"></div>
+                    <div>
+                        <div class="text-[11px] font-medium text-slate-500">全體雇主負擔總計 (勞+健+退)</div>
+                        <div class="text-base sm:text-lg font-extrabold text-slate-900"><span id="summary-org-total">0</span> <span class="text-xs font-normal">元</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 多人試算列表表格 -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-800 text-white border-b border-slate-700">
+                                <th class="py-3.5 px-3 text-center w-12 whitespace-nowrap">序號</th>
+                                <th class="py-3.5 px-3 min-w-[115px] whitespace-nowrap">人員姓名 / 備註</th>
+                                <th class="py-3.5 px-3 min-w-[130px] whitespace-nowrap">月薪總額 (元)</th>
+                                <th class="py-3.5 px-3 min-w-[235px] whitespace-nowrap">勞保計費起迄 (自動算天數)</th>
+                                <th class="py-3.5 px-3 min-w-[175px] whitespace-nowrap">健保 / 就保設定</th>
+                                <th class="py-3.5 px-3 min-w-[165px] text-right whitespace-nowrap bg-indigo-950/90">個人自負額明細</th>
+                                <th class="py-3.5 px-3 min-w-[185px] text-right whitespace-nowrap bg-slate-900">雇主(單位)負擔明細</th>
+                                <th class="py-3.5 px-3 min-w-[155px] whitespace-nowrap bg-slate-700/80">投保級距判定 <span class="text-[10px] font-normal text-indigo-300">(點擊查表)</span></th>
+                                <th class="py-3.5 px-2.5 text-center w-12 whitespace-nowrap">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="person-list-tbody" class="divide-y divide-slate-200">
+                            <!-- 由 JS 動態渲染人員列表 -->
+                        </tbody>
+                        <tfoot id="person-list-tfoot" class="bg-slate-100/90 border-t-2 border-slate-300 font-bold text-slate-800">
+                            <!-- 由 JS 動態渲染加總列 -->
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 公式與規則說明列 -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-bold text-slate-700"><i class="fa-solid fa-square-root-variable text-indigo-600 mr-1"></i>勞保公式：</span>
+                    <code class="font-mono text-[11px] bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 text-indigo-900">投保級距 × 保險費率 × 負擔比例 × (工作天數 ÷ 30)</code>
+                </div>
+                <div class="text-[11px] text-slate-500">
+                    ※ 完整月（1日至該月月底，含2月28日）一律計 30 天；非整月依實際在保日數比例計算。各項險別四捨五入後加總。
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二個分頁：115年完整分級對照表 (預設隱藏) -->
+        <div id="view-reference-table" class="hidden space-y-4">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                <div class="p-5 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2.5">
+                            <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-table-list text-indigo-600"></i>
+                                <span id="table-heading-title">115年勞健保及勞退負擔金額完整對照表</span>
+                            </h2>
+                            <button onclick="switchMainTab('calc')" class="text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors">
+                                <i class="fa-solid fa-arrow-left mr-1"></i>返回試算
+                            </button>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">表格金額為「完整30天」之標準月負擔額，系統已自動高亮顯示當前對應級距</p>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-xl self-start sm:self-auto">
+                        <button id="tab-labor" onclick="switchTableTab('labor')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm transition-all">
+                            勞保及勞退對照表
+                        </button>
+                        <button id="tab-health" onclick="switchTableTab('health')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all">
+                            全民健保負擔金額表
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 勞保與勞退對照表 -->
+                <div id="table-container-labor" class="overflow-x-auto max-h-[640px]">
+                    <table class="w-full text-xs text-left border-collapse">
+                        <thead class="bg-slate-100 text-slate-700 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 whitespace-nowrap">級數</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 whitespace-nowrap">月薪總額區間</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 text-right whitespace-nowrap">勞退提繳級距</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 text-right whitespace-nowrap">勞保投保級距</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 text-right whitespace-nowrap text-amber-800">勞退單位(6%)</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 text-right whitespace-nowrap text-indigo-800">個人勞保合計</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 text-right whitespace-nowrap text-slate-800">單位勞保合計</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 text-right whitespace-nowrap text-slate-900">單位勞+退總計</th>
+                            </tr>
+                        </thead>
+                        <tbody id="labor-table-body" class="divide-y divide-slate-100">
+                            <!-- JS 動態生成 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 健保對照表 -->
+                <div id="table-container-health" class="hidden overflow-x-auto max-h-[640px]">
+                    <table class="w-full text-xs text-left border-collapse">
+                        <thead class="bg-slate-100 text-slate-700 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 whitespace-nowrap">等級</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 text-right whitespace-nowrap">月投保金額</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 text-right whitespace-nowrap text-emerald-800">本人 (30%)</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 text-right whitespace-nowrap text-emerald-800">本人+1眷口</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 text-right whitespace-nowrap text-emerald-800">本人+2眷口</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 text-right whitespace-nowrap text-emerald-800">本人+3眷口</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 text-right whitespace-nowrap text-slate-800">投保單位負擔(60%)</th>
+                                <th class="py-3 px-3 font-semibold border-b border-slate-200 text-right whitespace-nowrap text-slate-500">政府補助(10%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="health-table-body" class="divide-y divide-slate-100">
+                            <!-- JS 動態生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // ==========================================
+        // 0. 動態費率與級距設定 (優先讀取同目錄下的 rates.json)
+        // ==========================================
+        let appConfig = {
+            yearTitle: "115年",
+            effectiveDateText: "依據115年1月1日實施最新投保級距表與費率（基本工資 29,500 元）",
+            defaultYear: "2026",
+            rates: {
+                healthRateText: "5.17%",
+                laborOrdinaryRate: 0.115,
+                laborEmploymentRate: 0.01,
+                empShareRatio: 0.20,
+                orgShareRatio: 0.70,
+                wageArrearsRate: 0.00025,
+                pensionOrgRate: 0.06
+            }
+        };
+
+        // ==========================================
+        // 1. 預設勞保及勞退分級表備援資料庫 (若外部 rates.json 讀取失敗時自動使用)
+        // ==========================================
+        let laborData115 = [
+            { level: "部分工時", min: 0, max: 1500, rangeText: "1,500以下", pensionWage: 1500, laborWage: 11100, tableOcc: 32 },
+            { level: "部分工時", min: 1501, max: 3000, rangeText: "1,501~3,000", pensionWage: 3000, laborWage: 11100, tableOcc: 32 },
+            { level: "部分工時", min: 3001, max: 4500, rangeText: "3,001~4,500", pensionWage: 4500, laborWage: 11100, tableOcc: 32 },
+            { level: "部分工時", min: 4501, max: 6000, rangeText: "4,501~6,000", pensionWage: 6000, laborWage: 11100, tableOcc: 32 },
+            { level: "部分工時", min: 6001, max: 7500, rangeText: "6,001~7,500", pensionWage: 7500, laborWage: 11100, tableOcc: 32 },
+            { level: "部分工時", min: 7501, max: 8700, rangeText: "7,501~8,700", pensionWage: 8700, laborWage: 11100, tableOcc: 32 },
+            { level: "部分工時", min: 8701, max: 9900, rangeText: "8,701~9,900", pensionWage: 9900, laborWage: 11100, tableOcc: 32 },
+            { level: "部分工時", min: 9901, max: 11100, rangeText: "9,901~11,100", pensionWage: 11100, laborWage: 11100, tableOcc: 32 },
+            { level: "部分工時", min: 11101, max: 12540, rangeText: "11,101~12,540", pensionWage: 12540, laborWage: 12540, tableOcc: 32 },
+            { level: "部分工時", min: 12541, max: 13500, rangeText: "12,541~13,500", pensionWage: 13500, laborWage: 13500, tableOcc: 32 },
+            { level: "部分工時", min: 13501, max: 15840, rangeText: "13,501~15,840", pensionWage: 15840, laborWage: 15840, tableOcc: 32 },
+            { level: "部分工時", min: 15841, max: 16500, rangeText: "15,841~16,500", pensionWage: 16500, laborWage: 16500, tableOcc: 32 },
+            { level: "部分工時", min: 16501, max: 17280, rangeText: "16,501~17,280", pensionWage: 17280, laborWage: 17280, tableOcc: 32 },
+            { level: "部分工時", min: 17281, max: 17880, rangeText: "17,281~17,880", pensionWage: 17880, laborWage: 17880, tableOcc: 32 },
+            { level: "部分工時", min: 17881, max: 19047, rangeText: "17,881~19,047", pensionWage: 19047, laborWage: 19047, tableOcc: 32 },
+            { level: "部分工時", min: 19048, max: 20008, rangeText: "19,048~20,008", pensionWage: 20008, laborWage: 20008, tableOcc: 32 },
+            { level: "部分工時", min: 20009, max: 21009, rangeText: "20,009~21,009", pensionWage: 21009, laborWage: 21009, tableOcc: 32 },
+            { level: "部分工時", min: 21010, max: 22000, rangeText: "21,010~22,000", pensionWage: 22000, laborWage: 22000, tableOcc: 32 },
+            { level: "部分工時", min: 22001, max: 23100, rangeText: "22,001~23,100", pensionWage: 23100, laborWage: 23100, tableOcc: 32 },
+            { level: "部分工時", min: 23101, max: 24000, rangeText: "23,101~24,000", pensionWage: 24000, laborWage: 24000, tableOcc: 32 },
+            { level: "部分工時", min: 24001, max: 25250, rangeText: "24,001~25,250", pensionWage: 25250, laborWage: 25250, tableOcc: 32 },
+            { level: "部分工時", min: 25251, max: 26400, rangeText: "25,251~26,400", pensionWage: 26400, laborWage: 26400, tableOcc: 32 },
+            { level: "部分工時", min: 26401, max: 27600, rangeText: "26,401~27,600", pensionWage: 27600, laborWage: 27600, tableOcc: 32 },
+            { level: "部分工時", min: 27601, max: 28590, rangeText: "27,601~28,590", pensionWage: 28590, laborWage: 28590, tableOcc: 32 },
+            { level: "第1級", min: 28591, max: 29500, rangeText: "28,591~29,500", pensionWage: 29500, laborWage: 29500, tableOcc: 32 },
+            { level: "第2級", min: 29501, max: 30300, rangeText: "29,501~30,300", pensionWage: 30300, laborWage: 30300, tableOcc: 33 },
+            { level: "第3級", min: 30301, max: 31800, rangeText: "30,301~31,800", pensionWage: 31800, laborWage: 31800, tableOcc: 35 },
+            { level: "第4級", min: 31801, max: 33300, rangeText: "31,801~33,300", pensionWage: 33300, laborWage: 33300, tableOcc: 37 },
+            { level: "第5級", min: 33301, max: 34800, rangeText: "33,301~34,800", pensionWage: 34800, laborWage: 34800, tableOcc: 38 },
+            { level: "第6級", min: 34801, max: 36300, rangeText: "34,801~36,300", pensionWage: 36300, laborWage: 36300, tableOcc: 40 },
+            { level: "第7級", min: 36301, max: 38200, rangeText: "36,301~38,200", pensionWage: 38200, laborWage: 38200, tableOcc: 42 },
+            { level: "第8級", min: 38201, max: 40100, rangeText: "38,201~40,100", pensionWage: 40100, laborWage: 40100, tableOcc: 44 },
+            { level: "第9級", min: 40101, max: 42000, rangeText: "40,101~42,000", pensionWage: 42000, laborWage: 42000, tableOcc: 46 },
+            { level: "第10級", min: 42001, max: 43900, rangeText: "42,001~43,900", pensionWage: 43900, laborWage: 43900, tableOcc: 48 },
+            { level: "第11級", min: 43901, max: 45800, rangeText: "43,901~45,800", pensionWage: 45800, laborWage: 45800, tableOcc: 50 },
+            { level: "第12級", min: 45801, max: 48200, rangeText: "45,801~48,200", pensionWage: 48200, laborWage: 45800, tableOcc: 53 },
+            { level: "第13級", min: 48201, max: 50600, rangeText: "48,201~50,600", pensionWage: 50600, laborWage: 45800, tableOcc: 56 },
+            { level: "第14級", min: 50601, max: 53000, rangeText: "50,601~53,000", pensionWage: 53000, laborWage: 45800, tableOcc: 58 },
+            { level: "第15級", min: 53001, max: 55400, rangeText: "53,001~55,400", pensionWage: 55400, laborWage: 45800, tableOcc: 61 },
+            { level: "第16級", min: 55401, max: 57800, rangeText: "55,401~57,800", pensionWage: 57800, laborWage: 45800, tableOcc: 64 },
+            { level: "第17級", min: 57801, max: 60800, rangeText: "57,801~60,800", pensionWage: 60800, laborWage: 45800, tableOcc: 67 },
+            { level: "第18級", min: 60801, max: 63800, rangeText: "60,801~63,800", pensionWage: 63800, laborWage: 45800, tableOcc: 70 },
+            { level: "第19級", min: 63801, max: 66800, rangeText: "63,801~66,800", pensionWage: 66800, laborWage: 45800, tableOcc: 73 },
+            { level: "第20級", min: 66801, max: 69800, rangeText: "66,801~69,800", pensionWage: 69800, laborWage: 45800, tableOcc: 77 },
+            { level: "第21級", min: 69801, max: 72800, rangeText: "69,801~72,800", pensionWage: 72800, laborWage: 45800, tableOcc: 80 },
+            { level: "第22級", min: 72801, max: 76500, rangeText: "72,801~76,500", pensionWage: 76500, laborWage: 45800, tableOcc: 80 },
+            { level: "第23級", min: 76501, max: 80200, rangeText: "76,501~80,200", pensionWage: 80200, laborWage: 45800, tableOcc: 80 },
+            { level: "第24級", min: 80201, max: 83900, rangeText: "80,201~83,900", pensionWage: 83900, laborWage: 45800, tableOcc: 80 },
+            { level: "第25級", min: 83901, max: 87600, rangeText: "83,901~87,600", pensionWage: 87600, laborWage: 45800, tableOcc: 80 },
+            { level: "第26級", min: 87601, max: 92100, rangeText: "87,601~92,100", pensionWage: 92100, laborWage: 45800, tableOcc: 80 },
+            { level: "第27級", min: 92101, max: 96600, rangeText: "92,101~96,600", pensionWage: 96600, laborWage: 45800, tableOcc: 80 },
+            { level: "第28級", min: 96601, max: 101100, rangeText: "96,601~101,100", pensionWage: 101100, laborWage: 45800, tableOcc: 80 },
+            { level: "第29級", min: 101101, max: 105600, rangeText: "101,101~105,600", pensionWage: 105600, laborWage: 45800, tableOcc: 80 },
+            { level: "第30級", min: 105601, max: 110100, rangeText: "105,601~110,100", pensionWage: 110100, laborWage: 45800, tableOcc: 80 },
+            { level: "第31級", min: 110101, max: 115500, rangeText: "110,101~115,500", pensionWage: 115500, laborWage: 45800, tableOcc: 80 },
+            { level: "第32級", min: 115501, max: 120900, rangeText: "115,501~120,900", pensionWage: 120900, laborWage: 45800, tableOcc: 80 },
+            { level: "第33級", min: 120901, max: 126300, rangeText: "120,901~126,300", pensionWage: 126300, laborWage: 45800, tableOcc: 80 },
+            { level: "第34級", min: 126301, max: 131700, rangeText: "126,301~131,700", pensionWage: 131700, laborWage: 45800, tableOcc: 80 },
+            { level: "第35級", min: 131701, max: 137100, rangeText: "131,701~137,100", pensionWage: 137100, laborWage: 45800, tableOcc: 80 },
+            { level: "第36級", min: 137101, max: 142500, rangeText: "137,101~142,500", pensionWage: 142500, laborWage: 45800, tableOcc: 80 },
+            { level: "第37級", min: 142501, max: 147900, rangeText: "142,501~147,900", pensionWage: 147900, laborWage: 45800, tableOcc: 80 },
+            { level: "第38級", min: 147901, max: Infinity, rangeText: "147,901以上", pensionWage: 150000, laborWage: 45800, tableOcc: 80 }
+        ];
+
+        // ==========================================
+        // 2. 預設全民健康保險負擔金額表備援資料庫
+        // ==========================================
+        let healthData115 = [
+            { grade: 1, wage: 29500, self: 458, org: 1428, gov: 238 },
+            { grade: 2, wage: 30300, self: 470, org: 1466, gov: 244 },
+            { grade: 3, wage: 31800, self: 493, org: 1539, gov: 256 },
+            { grade: 4, wage: 33300, self: 516, org: 1611, gov: 269 },
+            { grade: 5, wage: 34800, self: 540, org: 1684, gov: 281 },
+            { grade: 6, wage: 36300, self: 563, org: 1757, gov: 293 },
+            { grade: 7, wage: 38200, self: 592, org: 1849, gov: 308 },
+            { grade: 8, wage: 40100, self: 622, org: 1940, gov: 323 },
+            { grade: 9, wage: 42000, self: 651, org: 2032, gov: 339 },
+            { grade: 10, wage: 43900, self: 681, org: 2124, gov: 354 },
+            { grade: 11, wage: 45800, self: 710, org: 2216, gov: 369 },
+            { grade: 12, wage: 48200, self: 748, org: 2332, gov: 389 },
+            { grade: 13, wage: 50600, self: 785, org: 2449, gov: 408 },
+            { grade: 14, wage: 53000, self: 822, org: 2565, gov: 427 },
+            { grade: 15, wage: 55400, self: 859, org: 2681, gov: 447 },
+            { grade: 16, wage: 57800, self: 896, org: 2797, gov: 466 },
+            { grade: 17, wage: 60800, self: 943, org: 2942, gov: 490 },
+            { grade: 18, wage: 63800, self: 990, org: 3087, gov: 515 },
+            { grade: 19, wage: 66800, self: 1036, org: 3233, gov: 539 },
+            { grade: 20, wage: 69800, self: 1083, org: 3378, gov: 563 },
+            { grade: 21, wage: 72800, self: 1129, org: 3523, gov: 587 },
+            { grade: 22, wage: 76500, self: 1187, org: 3702, gov: 617 },
+            { grade: 23, wage: 80200, self: 1244, org: 3881, gov: 647 },
+            { grade: 24, wage: 83900, self: 1301, org: 4060, gov: 677 },
+            { grade: 25, wage: 87600, self: 1359, org: 4239, gov: 707 },
+            { grade: 26, wage: 92100, self: 1428, org: 4457, gov: 743 },
+            { grade: 27, wage: 96600, self: 1498, org: 4675, gov: 779 },
+            { grade: 28, wage: 101100, self: 1568, org: 4892, gov: 815 },
+            { grade: 29, wage: 105600, self: 1638, org: 5110, gov: 852 },
+            { grade: 30, wage: 110100, self: 1708, org: 5328, gov: 888 },
+            { grade: 31, wage: 115500, self: 1791, org: 5589, gov: 932 },
+            { grade: 32, wage: 120900, self: 1875, org: 5850, gov: 975 },
+            { grade: 33, wage: 126300, self: 1959, org: 6112, gov: 1019 },
+            { grade: 34, wage: 131700, self: 2043, org: 6373, gov: 1062 },
+            { grade: 35, wage: 137100, self: 2126, org: 6634, gov: 1106 },
+            { grade: 36, wage: 142500, self: 2210, org: 6896, gov: 1149 },
+            { grade: 37, wage: 147900, self: 2294, org: 7157, gov: 1193 },
+            { grade: 38, wage: 150000, self: 2327, org: 7259, gov: 1210 },
+            { grade: 39, wage: 156400, self: 2426, org: 7568, gov: 1261 },
+            { grade: 40, wage: 162800, self: 2525, org: 7878, gov: 1313 },
+            { grade: 41, wage: 169200, self: 2624, org: 8188, gov: 1365 },
+            { grade: 42, wage: 175600, self: 2724, org: 8497, gov: 1416 },
+            { grade: 43, wage: 182000, self: 2823, org: 8807, gov: 1468 },
+            { grade: 44, wage: 189500, self: 2939, org: 9170, gov: 1528 },
+            { grade: 45, wage: 197000, self: 3055, org: 9533, gov: 1589 },
+            { grade: 46, wage: 204500, self: 3172, org: 9896, gov: 1649 },
+            { grade: 47, wage: 212000, self: 3288, org: 10259, gov: 1710 },
+            { grade: 48, wage: 219500, self: 3404, org: 10622, gov: 1770 },
+            { grade: 49, wage: 228200, self: 3539, org: 11043, gov: 1840 },
+            { grade: 50, wage: 236900, self: 3674, org: 11464, gov: 1911 },
+            { grade: 51, wage: 245600, self: 3809, org: 11885, gov: 1981 },
+            { grade: 52, wage: 254300, self: 3944, org: 12306, gov: 2051 },
+            { grade: 53, wage: 263000, self: 4079, org: 12727, gov: 2121 },
+            { grade: 54, wage: 273000, self: 4234, org: 13211, gov: 2202 },
+            { grade: 55, wage: 283000, self: 4389, org: 13695, gov: 2282 },
+            { grade: 56, wage: 293000, self: 4544, org: 14179, gov: 2363 },
+            { grade: 57, wage: 303000, self: 4700, org: 14663, gov: 2444 },
+            { grade: 58, wage: 313000, self: 4855, org: 15146, gov: 2524 }
+        ];
+
+        // 數字千分位格式化工具
+        const fmt = (num) => Math.round(num).toLocaleString('zh-TW');
+
+        // 顯示 Toast 提示訊息
+        function showToast(msg) {
+            const box = document.getElementById('toast-box');
+            const msgEl = document.getElementById('toast-message');
+            msgEl.textContent = msg;
+            box.classList.remove('hidden');
+            setTimeout(() => {
+                box.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+            setTimeout(() => {
+                box.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => box.classList.add('hidden'), 300);
+            }, 2600);
+        }
+
+        // 查找對應勞保/勞退級距
+        function findLaborRow(salary) {
+            for (let i = 0; i < laborData115.length; i++) {
+                if (salary >= laborData115[i].min && salary <= laborData115[i].max) {
+                    return laborData115[i];
+                }
+            }
+            return laborData115[laborData115.length - 1];
+        }
+
+        // 查找對應健保級距 (薪資 <= 投保金額之最低級距，最高 313,000)
+        function findHealthRow(salary) {
+            for (let i = 0; i < healthData115.length; i++) {
+                if (salary <= healthData115[i].wage) {
+                    return healthData115[i];
+                }
+            }
+            return healthData115[healthData115.length - 1];
+        }
+
+        // 儲存最近一次計算結果供複製使用
+        let lastSummaryText = "";
+        let currentLaborIdx = 0;
+        let currentHealthIdx = 0;
+
+        // 多人試算狀態陣列 (預設 5 人，最多 10 人)
+        let personIdCounter = 1;
+        let persons = [];
+
+        function createDefaultPersons() {
+            personIdCounter = 1;
+            const y = appConfig.defaultYear || "2026";
+            const presets = [
+                { name: "人員 1", salary: 0, startDate: `${y}-01-01`, endDate: `${y}-01-31`, hasHealth: true, dependents: 0, hasEmpIns: true },
+                { name: "人員 2", salary: 0, startDate: `${y}-01-01`, endDate: `${y}-01-31`, hasHealth: true, dependents: 1, hasEmpIns: true },
+                { name: "人員 3", salary: 0, startDate: `${y}-01-15`, endDate: `${y}-01-31`, hasHealth: true, dependents: 0, hasEmpIns: true },
+                { name: "人員 4", salary: 0, startDate: `${y}-02-01`, endDate: `${y}-02-28`, hasHealth: true, dependents: 2, hasEmpIns: true },
+                { name: "人員 5", salary: 0, startDate: `${y}-01-01`, endDate: `${y}-01-31`, hasHealth: false, dependents: 0, hasEmpIns: true }
+            ];
+            return presets.map(p => ({ id: personIdCounter++, ...p }));
+        }
+
+        /**
+         * 依據起迄日期換算勞保計費天數 (處理完整一個月與破月規則)
+         */
+        function calculateInsuranceDays(startStr, endStr) {
+            if (!startStr || !endStr) {
+                return { days: 30, isFullMonth: true, isValid: false, shortLabel: "未選日期(30天)" };
+            }
+
+            const [sy, sm, sd] = startStr.split('-').map(Number);
+            const [ey, em, ed] = endStr.split('-').map(Number);
+
+            const startDate = new Date(sy, sm - 1, sd);
+            const endDate = new Date(ey, em - 1, ed);
+
+            if (endDate < startDate) {
+                return { days: 0, isFullMonth: false, isValid: false, shortLabel: "日期區間錯誤" };
+            }
+
+            // 取得迄日當月的最後一天 (例如 1月為31, 2月為28/29, 4月為30)
+            const lastDayOfEndMonth = new Date(ey, em, 0).getDate();
+
+            // 判斷是否為同月份的「完整一個月」(1號起保 至 該月最後一日)
+            if (sy === ey && sm === em && sd === 1 && ed === lastDayOfEndMonth) {
+                return {
+                    days: 30,
+                    isFullMonth: true,
+                    isValid: true,
+                    shortLabel: "完整1個月 (30天)"
+                };
+            }
+
+            // 破月計算：實際在保天數 = (迄日 - 起日) + 1
+            const diffTime = endDate.getTime() - startDate.getTime();
+            const rawDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            const billedDays = Math.min(rawDays, 30);
+
+            return {
+                days: billedDays,
+                isFullMonth: false,
+                isValid: true,
+                shortLabel: `破月 (${billedDays}天)`
+            };
+        }
+
+        // 計算單一人員的保費明細
+        function computePersonFees(p) {
+            const salary = Math.max(0, parseFloat(p.salary) || 0);
+            const dateInfo = calculateInsuranceDays(p.startDate, p.endDate);
+            const days = dateInfo.days;
+            const ratio = days / 30;
+
+            const laborRow = findLaborRow(salary);
+            const healthRow = findHealthRow(salary);
+            const laborIdx = laborData115.indexOf(laborRow);
+            const healthIdx = healthData115.indexOf(healthRow);
+
+            const laborWage = laborRow.laborWage;
+            const pensionWage = laborRow.pensionWage;
+            const healthWage = healthRow.wage;
+            const r = appConfig.rates;
+
+            // 勞保個人負擔
+            const empOrdinary = Math.round(laborWage * r.laborOrdinaryRate * r.empShareRatio * ratio);
+            const empEmployment = p.hasEmpIns ? Math.round(laborWage * r.laborEmploymentRate * r.empShareRatio * ratio) : 0;
+            const empLaborTotal = empOrdinary + empEmployment;
+
+            // 勞保單位負擔
+            const orgOrdinary = Math.round(laborWage * r.laborOrdinaryRate * r.orgShareRatio * ratio);
+            const orgEmployment = p.hasEmpIns ? Math.round(laborWage * r.laborEmploymentRate * r.orgShareRatio * ratio) : 0;
+            const orgOccupational = Math.round(laborRow.tableOcc * ratio);
+            const orgWageFund = Math.round(laborWage * r.wageArrearsRate * ratio);
+            const orgLaborTotal = orgOrdinary + orgEmployment + orgOccupational + orgWageFund;
+
+            // 勞退單位提繳 (6%)
+            const orgPension = Math.round(pensionWage * r.pensionOrgRate * ratio);
+
+            // 健保個人與單位負擔
+            const empHealthTotal = p.hasHealth ? healthRow.self * (1 + p.dependents) : 0;
+            const orgHealthTotal = p.hasHealth ? healthRow.org : 0;
+
+            const empGrandTotal = empLaborTotal + empHealthTotal;
+            const orgGrandTotal = orgLaborTotal + orgPension + orgHealthTotal;
+
+            return {
+                salary,
+                dateInfo,
+                days,
+                laborRow,
+                healthRow,
+                laborIdx,
+                healthIdx,
+                laborWage,
+                pensionWage,
+                healthWage,
+                empOrdinary,
+                empEmployment,
+                empLaborTotal,
+                empHealthTotal,
+                empGrandTotal,
+                orgOrdinary,
+                orgEmployment,
+                orgOccupational,
+                orgWageFund,
+                orgLaborTotal,
+                orgPension,
+                orgHealthTotal,
+                orgGrandTotal
+            };
+        }
+
+        // 渲染多人試算列表並計算全體加總
+        function renderPersonList() {
+            const tbody = document.getElementById('person-list-tbody');
+            const countText = document.getElementById('person-count-text');
+            const btnAdd = document.getElementById('btn-add-person');
+
+            countText.textContent = persons.length;
+            btnAdd.disabled = persons.length >= 10;
+
+            tbody.innerHTML = persons.map((p, index) => {
+                const res = computePersonFees(p);
+
+                if (index === 0) {
+                    highlightTableRows(res.laborRow, res.healthRow);
+                }
+
+                const badgeStyle = !res.dateInfo.isValid
+                    ? "text-rose-700 bg-rose-50 border-rose-200"
+                    : res.dateInfo.isFullMonth
+                        ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                        : "text-amber-700 bg-amber-50 border-amber-200";
+
+                return `
+                    <tr id="person-row-${p.id}" class="hover:bg-slate-50/80 transition-colors align-top">
+                        <!-- 序號 -->
+                        <td class="py-3 px-3 text-center font-bold text-slate-500 pt-4">
+                            #${index + 1}
+                        </td>
+
+                        <!-- 人員姓名 -->
+                        <td class="py-3 px-3">
+                            <input type="text" value="${p.name}"
+                                oninput="updatePersonField(${p.id}, 'name', this.value)"
+                                class="w-full px-2.5 py-1.5 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                                placeholder="輸入姓名">
+                        </td>
+
+                        <!-- 月薪總額 -->
+                        <td class="py-3 px-3">
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 font-semibold">$</span>
+                                <input type="number" value="${p.salary}" min="0" step="100"
+                                    oninput="updatePersonField(${p.id}, 'salary', this.value)"
+                                    class="w-full pl-6 pr-2 py-1.5 text-xs font-bold text-slate-900 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                                    placeholder="月薪">
+                            </div>
+                        </td>
+
+                        <!-- 勞保計費起迄 -->
+                        <td class="py-3 px-3 space-y-1.5">
+                            <div class="flex items-center gap-1">
+                                <input type="date" id="start-date-${p.id}" value="${p.startDate}"
+                                    oninput="updatePersonField(${p.id}, 'startDate', this.value)"
+                                    class="w-full px-2 py-1 text-[11px] font-medium text-slate-800 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500">
+                                <span class="text-slate-400">~</span>
+                                <input type="date" id="end-date-${p.id}" value="${p.endDate}"
+                                    oninput="updatePersonField(${p.id}, 'endDate', this.value)"
+                                    class="w-full px-2 py-1 text-[11px] font-medium text-slate-800 bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-indigo-500">
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span id="date-badge-${p.id}" class="inline-block text-[11px] font-bold border px-2 py-0.5 rounded-md ${badgeStyle}">
+                                    ${res.dateInfo.shortLabel}
+                                </span>
+                                <button type="button" onclick="setPersonFullMonth(${p.id})" class="text-[10px] text-indigo-600 hover:underline">設為1月全月</button>
+                            </div>
+                        </td>
+
+                        <!-- 健保 / 就保設定 -->
+                        <td class="py-3 px-3 space-y-1.5">
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                    <input type="checkbox" ${p.hasHealth ? 'checked' : ''}
+                                        onchange="updatePersonField(${p.id}, 'hasHealth', this.checked)"
+                                        class="w-3.5 h-3.5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500">
+                                    <span id="health-label-${p.id}" class="font-semibold ${p.hasHealth ? 'text-emerald-700' : 'text-slate-400'}">加保健保</span>
+                                </label>
+                                <select id="dependents-select-${p.id}" ${!p.hasHealth ? 'disabled' : ''}
+                                    onchange="updatePersonField(${p.id}, 'dependents', parseInt(this.value, 10))"
+                                    class="px-1.5 py-0.5 text-[11px] border border-slate-300 rounded-md bg-slate-50 ${!p.hasHealth ? 'opacity-40 cursor-not-allowed' : ''}">
+                                    <option value="0" ${p.dependents === 0 ? 'selected' : ''}>本人(0眷)</option>
+                                    <option value="1" ${p.dependents === 1 ? 'selected' : ''}>+1眷口</option>
+                                    <option value="2" ${p.dependents === 2 ? 'selected' : ''}>+2眷口</option>
+                                    <option value="3" ${p.dependents === 3 ? 'selected' : ''}>+3眷口</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="inline-flex items-center gap-1.5 cursor-pointer select-none text-[11px] text-slate-600">
+                                    <input type="checkbox" ${p.hasEmpIns ? 'checked' : ''}
+                                        onchange="updatePersonField(${p.id}, 'hasEmpIns', this.checked)"
+                                        class="w-3.5 h-3.5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span>適用就業保險 (1%)</span>
+                                </label>
+                            </div>
+                        </td>
+
+                        <!-- 個人自負額明細 -->
+                        <td id="emp-cell-${p.id}" class="py-3 px-3 text-right bg-indigo-50/30">
+                            <div class="text-sm font-extrabold text-indigo-700 mb-1">
+                                ${fmt(res.empGrandTotal)} <span class="text-[11px] font-normal">元</span>
+                            </div>
+                            <div class="text-[11px] text-slate-600 space-y-0.5">
+                                <div>勞保：<span class="font-semibold text-slate-800">${fmt(res.empLaborTotal)}</span> <span class="text-[10px] text-slate-400">(普${res.empOrdinary}+就${res.empEmployment})</span></div>
+                                <div>健保：<span class="font-semibold text-emerald-700">${fmt(res.empHealthTotal)}</span></div>
+                            </div>
+                        </td>
+
+                        <!-- 雇主(單位)負擔明細 -->
+                        <td id="org-cell-${p.id}" class="py-3 px-3 text-right bg-slate-100/50">
+                            <div class="text-sm font-extrabold text-slate-900 mb-1">
+                                ${fmt(res.orgGrandTotal)} <span class="text-[11px] font-normal">元</span>
+                            </div>
+                            <div class="text-[11px] text-slate-600 space-y-0.5">
+                                <div>勞保：<span class="font-semibold text-slate-800">${fmt(res.orgLaborTotal)}</span> <span class="text-[10px] text-slate-400">(含職災${res.orgOccupational}/墊${res.orgWageFund})</span></div>
+                                <div>勞退6%：<span class="font-semibold text-amber-700">${fmt(res.orgPension)}</span>｜健保：<span class="font-semibold text-emerald-700">${fmt(res.orgHealthTotal)}</span></div>
+                            </div>
+                        </td>
+
+                        <!-- 投保級距判定 (點擊跳轉對照表) -->
+                        <td id="grade-cell-${p.id}" onclick="jumpToReferenceTable(${res.laborIdx}, ${res.healthIdx})" title="點擊查看完整對照表對應級距"
+                            class="py-3 px-3 bg-slate-50/70 hover:bg-indigo-50/80 cursor-pointer transition-colors group">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[11px] font-bold text-indigo-700 bg-indigo-100/80 px-1.5 py-0.5 rounded">
+                                    ${res.laborRow.level}
+                                </span>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-slate-400 group-hover:text-indigo-600"></i>
+                            </div>
+                            <div class="text-[11px] text-slate-600 space-y-0.5">
+                                <div>勞保：<span class="font-bold text-slate-800">${fmt(res.laborWage)}</span></div>
+                                <div>健保：<span class="font-bold text-emerald-800">${p.hasHealth ? fmt(res.healthWage) : '未加保'}</span></div>
+                                <div>勞退：<span class="font-bold text-amber-800">${fmt(res.pensionWage)}</span></div>
+                            </div>
+                        </td>
+
+                        <!-- 刪除操作 -->
+                        <td class="py-3 px-2.5 text-center pt-3.5">
+                            <button onclick="removePerson(${p.id})" ${persons.length <= 1 ? 'disabled' : ''}
+                                title="${persons.length <= 1 ? '至少需保留 1 位人員' : '刪除此列人員'}"
+                                class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-30 disabled:pointer-events-none transition-colors">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            updateSummaryAndFooter();
+        }
+
+        // 僅更新全體總計列、頂部摘要與複製文字（不重繪輸入欄位，避免打字失去焦點）
+        function updateSummaryAndFooter() {
+            const tfoot = document.getElementById('person-list-tfoot');
+            let sumEmpLabor = 0;
+            let sumEmpHealth = 0;
+            let sumEmpGrand = 0;
+
+            let sumOrgLabor = 0;
+            let sumOrgPension = 0;
+            let sumOrgHealth = 0;
+            let sumOrgGrand = 0;
+
+            const summaryLines = [`【${appConfig.yearTitle}多人勞健保及勞退試算明細 (共 ${persons.length} 人)】`];
+
+            persons.forEach((p, index) => {
+                const res = computePersonFees(p);
+                sumEmpLabor += res.empLaborTotal;
+                sumEmpHealth += res.empHealthTotal;
+                sumEmpGrand += res.empGrandTotal;
+
+                sumOrgLabor += res.orgLaborTotal;
+                sumOrgPension += res.orgPension;
+                sumOrgHealth += res.orgHealthTotal;
+                sumOrgGrand += res.orgGrandTotal;
+
+                summaryLines.push(
+                    `${index + 1}. ${p.name || '未命名'}｜月薪:${fmt(res.salary)}元｜${res.dateInfo.shortLabel}｜` +
+                    `自負額:${fmt(res.empGrandTotal)}元(勞${res.empLaborTotal}/健${res.empHealthTotal})｜` +
+                    `雇主負擔:${fmt(res.orgGrandTotal)}元(勞${res.orgLaborTotal}/退${res.orgPension}/健${res.orgHealthTotal})`
+                );
+            });
+
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="5" class="py-3.5 px-4 text-right text-xs sm:text-sm text-slate-700">
+                        全體合計（共 ${persons.length} 人）：
+                    </td>
+                    <td class="py-3.5 px-3 text-right bg-indigo-100/60">
+                        <div class="text-sm sm:text-base font-extrabold text-indigo-800">${fmt(sumEmpGrand)} 元</div>
+                        <div class="text-[11px] font-normal text-indigo-700">勞保 ${fmt(sumEmpLabor)} + 健保 ${fmt(sumEmpHealth)}</div>
+                    </td>
+                    <td class="py-3.5 px-3 text-right bg-slate-200/70">
+                        <div class="text-sm sm:text-base font-extrabold text-slate-900">${fmt(sumOrgGrand)} 元</div>
+                        <div class="text-[11px] font-normal text-slate-600">勞 ${fmt(sumOrgLabor)} + 退 ${fmt(sumOrgPension)} + 健 ${fmt(sumOrgHealth)}</div>
+                    </td>
+                    <td colspan="2"></td>
+                </tr>
+            `;
+
+            document.getElementById('summary-emp-total').textContent = fmt(sumEmpGrand);
+            document.getElementById('summary-org-total').textContent = fmt(sumOrgGrand);
+
+            summaryLines.push(`----------------------------------------`);
+            summaryLines.push(`全體個人自負額總計：${fmt(sumEmpGrand)} 元（勞保 ${fmt(sumEmpLabor)} 元 + 健保 ${fmt(sumEmpHealth)} 元）`);
+            summaryLines.push(`全體雇主負擔總計：${fmt(sumOrgGrand)} 元（勞保 ${fmt(sumOrgLabor)} 元 + 勞退 ${fmt(sumOrgPension)} 元 + 健保 ${fmt(sumOrgHealth)} 元）`);
+            lastSummaryText = summaryLines.join('\n');
+        }
+
+        // 局部更新單一人員的計算結果欄位（保持輸入框焦點不中斷）
+        function updateSinglePersonDisplay(p) {
+            const res = computePersonFees(p);
+
+            const badgeStyle = !res.dateInfo.isValid
+                ? "text-rose-700 bg-rose-50 border-rose-200"
+                : res.dateInfo.isFullMonth
+                    ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                    : "text-amber-700 bg-amber-50 border-amber-200";
+
+            const dateBadge = document.getElementById(`date-badge-${p.id}`);
+            if (dateBadge) {
+                dateBadge.className = `inline-block text-[11px] font-bold border px-2 py-0.5 rounded-md ${badgeStyle}`;
+                dateBadge.textContent = res.dateInfo.shortLabel;
+            }
+
+            const healthLabel = document.getElementById(`health-label-${p.id}`);
+            if (healthLabel) {
+                healthLabel.className = `font-semibold ${p.hasHealth ? 'text-emerald-700' : 'text-slate-400'}`;
+            }
+
+            const depSelect = document.getElementById(`dependents-select-${p.id}`);
+            if (depSelect) {
+                depSelect.disabled = !p.hasHealth;
+                depSelect.className = `px-1.5 py-0.5 text-[11px] border border-slate-300 rounded-md bg-slate-50 ${!p.hasHealth ? 'opacity-40 cursor-not-allowed' : ''}`;
+            }
+
+            const gradeCell = document.getElementById(`grade-cell-${p.id}`);
+            if (gradeCell) {
+                gradeCell.setAttribute('onclick', `jumpToReferenceTable(${res.laborIdx}, ${res.healthIdx})`);
+                gradeCell.innerHTML = `
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[11px] font-bold text-indigo-700 bg-indigo-100/80 px-1.5 py-0.5 rounded">
+                            ${res.laborRow.level}
+                        </span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-slate-400 group-hover:text-indigo-600"></i>
+                    </div>
+                    <div class="text-[11px] text-slate-600 space-y-0.5">
+                        <div>勞保：<span class="font-bold text-slate-800">${fmt(res.laborWage)}</span></div>
+                        <div>健保：<span class="font-bold text-emerald-800">${p.hasHealth ? fmt(res.healthWage) : '未加保'}</span></div>
+                        <div>勞退：<span class="font-bold text-amber-800">${fmt(res.pensionWage)}</span></div>
+                    </div>
+                `;
+            }
+
+            const empCell = document.getElementById(`emp-cell-${p.id}`);
+            if (empCell) {
+                empCell.innerHTML = `
+                    <div class="text-sm font-extrabold text-indigo-700 mb-1">
+                        ${fmt(res.empGrandTotal)} <span class="text-[11px] font-normal">元</span>
+                    </div>
+                    <div class="text-[11px] text-slate-600 space-y-0.5">
+                        <div>勞保：<span class="font-semibold text-slate-800">${fmt(res.empLaborTotal)}</span> <span class="text-[10px] text-slate-400">(普${res.empOrdinary}+就${res.empEmployment})</span></div>
+                        <div>健保：<span class="font-semibold text-emerald-700">${fmt(res.empHealthTotal)}</span></div>
+                    </div>
+                `;
+            }
+
+            const orgCell = document.getElementById(`org-cell-${p.id}`);
+            if (orgCell) {
+                orgCell.innerHTML = `
+                    <div class="text-sm font-extrabold text-slate-900 mb-1">
+                        ${fmt(res.orgGrandTotal)} <span class="text-[11px] font-normal">元</span>
+                    </div>
+                    <div class="text-[11px] text-slate-600 space-y-0.5">
+                        <div>勞保：<span class="font-semibold text-slate-800">${fmt(res.orgLaborTotal)}</span> <span class="text-[10px] text-slate-400">(含職災${res.orgOccupational}/墊${res.orgWageFund})</span></div>
+                        <div>勞退6%：<span class="font-semibold text-amber-700">${fmt(res.orgPension)}</span>｜健保：<span class="font-semibold text-emerald-700">${fmt(res.orgHealthTotal)}</span></div>
+                    </div>
+                `;
+            }
+
+            if (persons[0] && persons[0].id === p.id) {
+                highlightTableRows(res.laborRow, res.healthRow);
+            }
+
+            updateSummaryAndFooter();
+        }
+
+        // 更新單一人員欄位
+        function updatePersonField(id, field, value) {
+            const person = persons.find(p => p.id === id);
+            if (!person) return;
+            person[field] = value;
+            updateSinglePersonDisplay(person);
+        }
+
+        // 快速設定某位人員為 1 月全月
+        function setPersonFullMonth(id) {
+            const person = persons.find(p => p.id === id);
+            if (!person) return;
+            const y = appConfig.defaultYear || "2026";
+            person.startDate = `${y}-01-01`;
+            person.endDate = `${y}-01-31`;
+            const startInput = document.getElementById(`start-date-${id}`);
+            const endInput = document.getElementById(`end-date-${id}`);
+            if (startInput) startInput.value = `${y}-01-01`;
+            if (endInput) endInput.value = `${y}-01-31`;
+            updateSinglePersonDisplay(person);
+        }
+
+        // 新增人員 (上限 10 人)
+        function addPerson() {
+            if (persons.length >= 10) {
+                showToast("最多可同時計算 10 位人員");
+                return;
+            }
+            const nextNum = personIdCounter++;
+            const y = appConfig.defaultYear || "2026";
+            persons.push({
+                id: nextNum,
+                name: `人員 ${nextNum}`,
+                salary: 0,
+                startDate: `${y}-01-01`,
+                endDate: `${y}-01-31`,
+                hasHealth: true,
+                dependents: 0,
+                hasEmpIns: true
+            });
+            renderPersonList();
+            showToast(`已新增人員（目前共 ${persons.length} 人）`);
+        }
+
+        // 刪除人員
+        function removePerson(id) {
+            if (persons.length <= 1) return;
+            persons = persons.filter(p => p.id !== id);
+            renderPersonList();
+        }
+
+        // 重設為預設 5 人
+        function resetAllPersons() {
+            persons = createDefaultPersons();
+            renderPersonList();
+            showToast("已重設為預設 5 位人員");
+        }
+
+        // 複製試算明細到剪貼簿 (相容 iframe 環境)
+        function copyResultSummary() {
+            if (!lastSummaryText) return;
+            const textarea = document.createElement('textarea');
+            textarea.value = lastSummaryText;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast("已將全體人員試算明細複製到剪貼簿！");
+            } catch (err) {
+                showToast("複製失敗，請手動選取複製");
+            }
+            document.body.removeChild(textarea);
+        }
+
+        // 切換下方對照表頁籤
+        function switchTableTab(tab) {
+            const btnLabor = document.getElementById('tab-labor');
+            const btnHealth = document.getElementById('tab-health');
+            const boxLabor = document.getElementById('table-container-labor');
+            const boxHealth = document.getElementById('table-container-health');
+
+            if (tab === 'labor') {
+                btnLabor.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm transition-all";
+                btnHealth.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all";
+                boxLabor.classList.remove('hidden');
+                boxHealth.classList.add('hidden');
+            } else {
+                btnHealth.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-emerald-700 shadow-sm transition-all";
+                btnLabor.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all";
+                boxHealth.classList.remove('hidden');
+                boxLabor.classList.add('hidden');
+            }
+        }
+
+        // 渲染完整參考表格
+        function renderTables() {
+            const r = appConfig.rates;
+            const laborTbody = document.getElementById('labor-table-body');
+            laborTbody.innerHTML = laborData115.map((row, idx) => {
+                const pensionOrg = Math.round(row.pensionWage * r.pensionOrgRate);
+                const empTotal = Math.round(row.laborWage * r.laborOrdinaryRate * r.empShareRatio) + Math.round(row.laborWage * r.laborEmploymentRate * r.empShareRatio);
+                const orgLabor = Math.round(row.laborWage * r.laborOrdinaryRate * r.orgShareRatio) + Math.round(row.laborWage * r.laborEmploymentRate * r.orgShareRatio) + row.tableOcc + Math.round(row.laborWage * r.wageArrearsRate);
+                const orgTotal = orgLabor + pensionOrg;
+
+                return `
+                    <tr id="labor-row-${idx}" class="hover:bg-slate-50 transition-colors">
+                        <td class="py-2.5 px-3 font-medium text-slate-600">${row.level}</td>
+                        <td class="py-2.5 px-3 text-slate-700">${row.rangeText}</td>
+                        <td class="py-2.5 px-3 text-right font-medium text-amber-800">${fmt(row.pensionWage)}</td>
+                        <td class="py-2.5 px-3 text-right font-bold text-slate-800">${fmt(row.laborWage)}</td>
+                        <td class="py-2.5 px-3 text-right text-amber-700">${fmt(pensionOrg)}</td>
+                        <td class="py-2.5 px-3 text-right font-semibold text-indigo-700">${fmt(empTotal)}</td>
+                        <td class="py-2.5 px-3 text-right text-slate-700">${fmt(orgLabor)}</td>
+                        <td class="py-2.5 px-3 text-right font-semibold text-slate-900">${fmt(orgTotal)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const healthTbody = document.getElementById('health-table-body');
+            healthTbody.innerHTML = healthData115.map((row, idx) => `
+                <tr id="health-row-${idx}" class="hover:bg-slate-50 transition-colors">
+                    <td class="py-2.5 px-3 font-medium text-slate-600">第 ${row.grade} 級</td>
+                    <td class="py-2.5 px-3 text-right font-bold text-slate-800">${fmt(row.wage)}</td>
+                    <td class="py-2.5 px-3 text-right font-semibold text-emerald-700">${fmt(row.self)}</td>
+                    <td class="py-2.5 px-3 text-right text-emerald-700">${fmt(row.self * 2)}</td>
+                    <td class="py-2.5 px-3 text-right text-emerald-700">${fmt(row.self * 3)}</td>
+                    <td class="py-2.5 px-3 text-right text-emerald-700">${fmt(row.self * 4)}</td>
+                    <td class="py-2.5 px-3 text-right font-semibold text-slate-800">${fmt(row.org)}</td>
+                    <td class="py-2.5 px-3 text-right text-slate-500">${fmt(row.gov)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 高亮顯示目前查詢對應的表格列
+        function highlightTableRows(laborRow, healthRow) {
+            document.querySelectorAll('#labor-table-body tr').forEach(tr => {
+                tr.classList.remove('bg-indigo-50/90', 'ring-1', 'ring-inset', 'ring-indigo-300');
+            });
+            document.querySelectorAll('#health-table-body tr').forEach(tr => {
+                tr.classList.remove('bg-emerald-50/90', 'ring-1', 'ring-inset', 'ring-emerald-300');
+            });
+
+            const lIdx = laborData115.indexOf(laborRow);
+            const hIdx = healthData115.indexOf(healthRow);
+            currentLaborIdx = lIdx;
+            currentHealthIdx = hIdx;
+
+            const lEl = document.getElementById(`labor-row-${lIdx}`);
+            if (lEl) lEl.classList.add('bg-indigo-50/90', 'ring-1', 'ring-inset', 'ring-indigo-300');
+
+            const hEl = document.getElementById(`health-row-${hIdx}`);
+            if (hEl) hEl.classList.add('bg-emerald-50/90', 'ring-1', 'ring-inset', 'ring-emerald-300');
+        }
+
+        // 切換主分頁（試算查詢 vs 完整對照表）
+        function switchMainTab(tab) {
+            const viewCalc = document.getElementById('view-calculator');
+            const viewTable = document.getElementById('view-reference-table');
+            const btnCalc = document.getElementById('main-tab-calc');
+            const btnTable = document.getElementById('main-tab-table');
+
+            if (tab === 'calc') {
+                viewCalc.classList.remove('hidden');
+                viewTable.classList.add('hidden');
+                btnCalc.className = "flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-600 text-white shadow-sm transition-all";
+                btnTable.className = "flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-all";
+            } else {
+                viewCalc.classList.add('hidden');
+                viewTable.classList.remove('hidden');
+                btnTable.className = "flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-600 text-white shadow-sm transition-all";
+                btnCalc.className = "flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-all";
+            }
+        }
+
+        // 點選「投保級距判定」跳轉至完整對照表並定位到高亮級距列
+        function jumpToReferenceTable(laborIdx, healthIdx) {
+            if (typeof laborIdx === 'number' && typeof healthIdx === 'number') {
+                highlightTableRows(laborData115[laborIdx], healthData115[healthIdx]);
+            }
+            switchMainTab('table');
+            switchTableTab('labor');
+            setTimeout(() => {
+                const targetRow = document.getElementById(`labor-row-${currentLaborIdx}`);
+                if (targetRow) {
+                    targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 50);
+        }
+
+        // 自動讀取同目錄下的 rates.json (方便日後免改主程式直接更新年度費率)
+        async function loadExternalRates() {
+            try {
+                const response = await fetch('./rates.json?t=' + Date.now());
+                if (!response.ok) throw new Error('讀取 rates.json 失敗');
+                const data = await response.json();
+
+                if (data.yearTitle) appConfig.yearTitle = data.yearTitle;
+                if (data.effectiveDateText) appConfig.effectiveDateText = data.effectiveDateText;
+                if (data.defaultYear) appConfig.defaultYear = data.defaultYear;
+                if (data.rates) appConfig.rates = { ...appConfig.rates, ...data.rates };
+                if (Array.isArray(data.laborData) && data.laborData.length > 0) {
+                    laborData115 = data.laborData;
+                }
+                if (Array.isArray(data.healthData) && data.healthData.length > 0) {
+                    healthData115 = data.healthData;
+                }
+
+                // 更新畫面上的年度標題與費率顯示
+                document.title = appConfig.yearTitle + '勞健保及勞退保費查詢計算器';
+                document.getElementById('header-main-title').textContent = appConfig.yearTitle + '勞健保及勞退保費查詢系統';
+                document.getElementById('header-sub-title').textContent = appConfig.effectiveDateText;
+                document.getElementById('tab-table-title').textContent = appConfig.yearTitle + '勞健保及勞退負擔金額完整對照表';
+                document.getElementById('table-heading-title').textContent = appConfig.yearTitle + '勞健保及勞退負擔金額完整對照表';
+                const ordPct = +(appConfig.rates.laborOrdinaryRate * 100).toFixed(2);
+                const empPct = +(appConfig.rates.laborEmploymentRate * 100).toFixed(2);
+                document.getElementById('header-rate-badge').textContent = '健保費率 ' + appConfig.rates.healthRateText + ' ｜ 勞保普通 ' + ordPct + '% + 就保 ' + empPct + '%';
+            } catch (err) {
+                console.warn('未偵測到外部 rates.json 或為本機直接開啟，改用內建預設資料：', err);
+            }
+        }
+
+        // 綁定事件監聽器與初始化
+        window.addEventListener('DOMContentLoaded', async () => {
+            await loadExternalRates();
+            renderTables();
+            persons = createDefaultPersons();
+            renderPersonList();
+        });
+    </script>
+</body>
+</html>
